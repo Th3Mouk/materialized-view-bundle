@@ -1,0 +1,122 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Th3Mouk\MaterializedViewBundle\Command;
+
+use Doctrine\Migrations\DependencyFactory;
+use LogicException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
+use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
+use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
+use Th3Mouk\MaterializedViewBundle\Lane\ConsoleLaneMigrator;
+use Th3Mouk\MaterializedViewBundle\Lane\DoctrineLane;
+use Th3Mouk\MaterializedViewBundle\Lane\DoctrineMigrationsLaneGuard;
+use Th3Mouk\MaterializedViewBundle\Lane\LaneResult;
+use Th3Mouk\MaterializedViewBundle\Lane\MaterializedViewManagerOperations;
+
+#[AsCommand(
+    name: 'matview:doctrine-lane',
+    description: 'Run drop-if-pending -> migrate -> sync in a single advisory-locked process, per database.',
+)]
+final class DoctrineLaneCommand extends Command
+{
+    public function __construct(
+        #[Autowire(service: 'doctrine.migrations.dependency_factory')]
+        private readonly DependencyFactory $dependencyFactory,
+        private readonly MaterializedViewRegistry $registry,
+        #[Autowire(param: 'th3mouk_materialized_view.lane.lock_namespace')]
+        private readonly int $laneNamespace,
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption(
+            'dry-run',
+            null,
+            InputOption::VALUE_NONE,
+            'Report pending migrations and run the migration step in dry-run mode without dropping or synchronising views.',
+        );
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $io = new SymfonyStyle($input, $output);
+        $dryRun = (bool) $input->getOption('dry-run');
+
+        $connection = $this->dependencyFactory->getConnection();
+
+        $lane = new DoctrineLane(
+            guard: new DoctrineMigrationsLaneGuard($this->dependencyFactory, $this->laneNamespace),
+            migrator: new ConsoleLaneMigrator($this->requireApplication(), $output),
+            views: new MaterializedViewManagerOperations(
+                MaterializedViewManager::forConnection($connection, $this->logger),
+                $this->registry,
+                $connection,
+            ),
+            logger: $this->logger,
+        );
+
+        $result = $lane->run($dryRun);
+
+        $this->report($io, $result);
+
+        return Command::SUCCESS;
+    }
+
+    private function requireApplication(): Application
+    {
+        return $this->getApplication()
+            ?? throw new LogicException('The lane command must be registered in a console Application.');
+    }
+
+    private function report(SymfonyStyle $io, LaneResult $result): void
+    {
+        if ($result->lockContended) {
+            $io->warning('Another process holds the lane lock on this database; dry-run skipped.');
+
+            return;
+        }
+
+        if ($result->dryRun) {
+            $io->success(\sprintf(
+                'Dry-run complete. Migrations pending: %s.',
+                $result->migrationsPending ? 'yes' : 'no',
+            ));
+
+            return;
+        }
+
+        $this->reportOutcome($io, $result->outcome);
+    }
+
+    private function reportOutcome(SymfonyStyle $io, ?SyncOutcome $outcome): void
+    {
+        if (!$outcome instanceof SyncOutcome) {
+            $io->success('Lane complete.');
+
+            return;
+        }
+
+        $io->success(\sprintf(
+            'Lane complete. Created: %d, rebuilt: %d, pruned: %d, up to date: %d.',
+            \count($outcome->created),
+            \count($outcome->rebuilt),
+            \count($outcome->pruned),
+            \count($outcome->upToDate),
+        ));
+    }
+}

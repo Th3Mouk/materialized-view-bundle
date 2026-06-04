@@ -1,0 +1,90 @@
+{
+    "name": "th3mouk/materialized-view-bundle",
+    "description": "Symfony bundle for th3mouk/materialized-view: autoconfiguration, console commands, the locked deploy lane, async refresh and read-only ORM guards for PostgreSQL materialized views.",
+    "type": "symfony-bundle",
+    "keywords": [
+        "symfony",
+        "symfony-bundle",
+        "postgresql",
+        "materialized-view",
+        "doctrine",
+        "doctrine-migrations",
+        "analytics",
+        "reporting",
+        "read-model"
+    ],
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Jérémy Marodon (th3mouk)",
+            "role": "Author"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../materialized-view"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "th3mouk/materialized-view": "^1.0",
+        "symfony/framework-bundle": "^8.0",
+        "symfony/console": "^8.0",
+        "symfony/config": "^8.0",
+        "symfony/dependency-injection": "^8.0",
+        "symfony/filesystem": "^8.0",
+        "symfony/http-kernel": "^8.0",
+        "doctrine/dbal": "^4.4",
+        "doctrine/doctrine-bundle": "^3.0"
+    },
+    "require-dev": {
+        "doctrine/doctrine-migrations-bundle": "^4.0",
+        "doctrine/orm": "^3.6",
+        "symfony/error-handler": "^8.0",
+        "symfony/messenger": "^8.0",
+        "symfony/scheduler": "^8.0",
+        "phpunit/phpunit": "^13.0",
+        "phpstan/phpstan": "^2.1",
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "rector/rector": "^2.0"
+    },
+    "suggest": {
+        "doctrine/doctrine-migrations-bundle": "For matview:doctrine-lane (drop -> migrate -> sync in one locked process).",
+        "symfony/messenger": "For PopulationPolicy::Async refresh dispatching.",
+        "symfony/scheduler": "To schedule periodic refreshes.",
+        "doctrine/orm": "For read-only entity mapping and the write/readiness guards."
+    },
+    "autoload": {
+        "psr-4": {
+            "Th3Mouk\\MaterializedViewBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Th3Mouk\\MaterializedViewBundle\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "require": "8.0.*"
+        },
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "cs:check": "php-cs-fixer fix --dry-run --diff",
+        "cs:fix": "php-cs-fixer fix",
+        "rector": "rector process",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "test:unit": "phpunit --testsuite=unit",
+        "test:integration": "phpunit --testsuite=integration",
+        "test": ["@test:unit", "@test:integration"]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
