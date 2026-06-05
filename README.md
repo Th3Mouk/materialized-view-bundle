@@ -64,7 +64,7 @@ Core concepts (definitions, rebuilds, refresh, locking, hashing, ORM) are docume
 
 | This bundle | PHP | Symfony | DoctrineBundle | Migrations (optional) | Core |
 |---|---|---|---|---|---|
-| `^0.1` | ≥ 8.4 | ^8.0 | ^2.13 | ^4.0 | `th3mouk/materialized-view:^0.1` |
+| `^1.0` | ≥ 8.4 | ^8.0 | ^2.13 | ^4.0 | `th3mouk/materialized-view:^1.0` |
 
 ## License
 
