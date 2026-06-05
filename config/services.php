@@ -61,13 +61,14 @@ return static function (ContainerConfigurator $container): void {
         ->private();
 
     $connection = service('th3mouk_materialized_view.connection');
+    $logger = service('th3mouk_materialized_view.logger');
 
     $services->set('th3mouk_materialized_view.introspector', PostgreSqlMaterializedViewIntrospector::class)
-        ->args([$connection]);
+        ->args([$connection, $logger]);
     $services->alias(PostgreSqlMaterializedViewIntrospector::class, 'th3mouk_materialized_view.introspector');
 
     $services->set('th3mouk_materialized_view.readiness_checker', ReadinessChecker::class)
-        ->args([$connection]);
+        ->args([$connection, $logger]);
     $services->alias(ReadinessChecker::class, 'th3mouk_materialized_view.readiness_checker');
 
     $services->set('th3mouk_materialized_view.hasher', DefinitionHasher::class)
@@ -85,14 +86,14 @@ return static function (ContainerConfigurator $container): void {
     $services->alias(CatalogDependencyResolver::class, 'th3mouk_materialized_view.dependency_resolver');
 
     $services->set('th3mouk_materialized_view.external_dependency_guard', ExternalDependencyGuard::class)
-        ->args([service('th3mouk_materialized_view.dependency_resolver')]);
+        ->args([service('th3mouk_materialized_view.dependency_resolver'), $logger]);
     $services->alias(ExternalDependencyGuard::class, 'th3mouk_materialized_view.external_dependency_guard');
 
     $services->set('th3mouk_materialized_view.manager', MaterializedViewManager::class)
         ->factory([MaterializedViewManager::class, 'forConnection'])
         ->args([
             $connection,
-            service('logger')->nullOnInvalid(),
+            $logger,
             param('th3mouk_materialized_view.refresh.lock_namespace'),
         ]);
     $services->alias(MaterializedViewManager::class, 'th3mouk_materialized_view.manager');
@@ -262,7 +263,7 @@ return static function (ContainerConfigurator $container): void {
                 service('doctrine.migrations.dependency_factory'),
                 service('th3mouk_materialized_view.registry'),
                 param('th3mouk_materialized_view.lane.lock_namespace'),
-                service('logger')->nullOnInvalid(),
+                $logger,
             ]);
     }
 
@@ -276,7 +277,7 @@ return static function (ContainerConfigurator $container): void {
                 service('th3mouk_materialized_view.registry'),
                 service('th3mouk_materialized_view.messenger.target_resolver'),
                 service('th3mouk_materialized_view.shared_transport_guard'),
-                service('logger')->nullOnInvalid(),
+                $logger,
                 param('th3mouk_materialized_view.refresh.lock_namespace'),
             ]);
     }
@@ -290,11 +291,12 @@ return static function (ContainerConfigurator $container): void {
                 service('doctrine.orm.entity_manager'),
                 service('th3mouk_materialized_view.orm.metadata_reader'),
                 service('th3mouk_materialized_view.readiness_checker'),
+                $logger,
             ]);
         $services->alias(OrmReadinessGuard::class, 'th3mouk_materialized_view.orm.readiness_guard');
 
         $services->set('th3mouk_materialized_view.orm.write_guard', MaterializedViewWriteGuard::class)
-            ->args([service('th3mouk_materialized_view.orm.metadata_reader')])
+            ->args([service('th3mouk_materialized_view.orm.metadata_reader'), $logger])
             ->tag('doctrine.event_listener', ['event' => 'onFlush']);
 
         $services->set('th3mouk_materialized_view.orm.post_load_listener', MaterializedViewPostLoadListener::class)

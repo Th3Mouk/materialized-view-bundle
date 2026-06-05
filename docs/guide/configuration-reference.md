@@ -70,6 +70,12 @@ th3mouk_materialized_view:
 
     doctrine:
         orm_write_guard: true        # register the onFlush write guard for matview entities
+
+    logging:
+        # Monolog bridge (only effective when MonologBundle is installed; the core
+        # library stays framework-agnostic and logs through PSR-3).
+        enabled: true                # false → NullLogger (silent)
+        channel: materialized_view   # a dedicated channel, or an existing one (e.g. "migration")
 ```
 
 ## Notes on key options
@@ -81,3 +87,4 @@ th3mouk_materialized_view:
 - **`refresh.lock_namespace` / `lane.lock_namespace`** — reserved advisory-lock namespaces; keep them distinct from any other application advisory locks. Keys are stable and computed in PHP (never `hashtext`). Advisory locks are per-database, so separate databases don't collide.
 - **`template.policy`** — pick `empty` or `maintained_template` deliberately when you clone databases from a template. See [Templates & cloning](templates-and-cloning.md).
 - **`metadata.storage`** — `comment` travels with database clones; `comment_and_table` adds refresh observability.
+- **`logging.*`** — the **Monolog bridge**. The core library is framework-agnostic and logs through PSR-3 (`NullLogger` by default). When MonologBundle is installed, the bundle declares the `channel` (via `prependExtension`) and binds a single channel logger (`th3mouk_materialized_view.logger` → `monolog.logger.<channel>`) into every service, so every library log lands on one channel. Use a **dedicated** channel (default `materialized_view`) or point `channel` at an **existing** application channel (e.g. `migration`) to reuse its handlers/formatters. `enabled: false` forces a `NullLogger` regardless of Monolog; without MonologBundle the bundle falls back to the framework `logger` service, then to `NullLogger`. The levels emitted by the core (`debug`/`info`/`notice`/`warning`) are documented in the core CHANGELOG.

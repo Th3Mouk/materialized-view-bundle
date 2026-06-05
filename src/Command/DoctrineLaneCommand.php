@@ -60,7 +60,7 @@ final class DoctrineLaneCommand extends Command
         $connection = $this->dependencyFactory->getConnection();
 
         $lane = new DoctrineLane(
-            guard: new DoctrineMigrationsLaneGuard($this->dependencyFactory, $this->laneNamespace),
+            guard: new DoctrineMigrationsLaneGuard($this->dependencyFactory, $this->laneNamespace, $this->logger),
             migrator: new ConsoleLaneMigrator($this->requireApplication(), $output),
             views: new MaterializedViewManagerOperations(
                 MaterializedViewManager::forConnection($connection, $this->logger),

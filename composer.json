@@ -28,7 +28,7 @@
     ],
     "require": {
         "php": ">=8.4",
-        "th3mouk/materialized-view": "^1.0",
+        "th3mouk/materialized-view": "^1.1",
         "symfony/framework-bundle": "^8.0",
         "symfony/console": "^8.0",
         "symfony/config": "^8.0",
@@ -70,7 +70,7 @@
             "require": "8.0.*"
         },
         "branch-alias": {
-            "dev-main": "1.0.x-dev"
+            "dev-main": "1.1.x-dev"
         }
     },
     "config": {

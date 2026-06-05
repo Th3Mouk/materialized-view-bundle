@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Th3Mouk\MaterializedViewBundle\Lane;
 
 use Doctrine\Migrations\DependencyFactory;
+use Psr\Log\LoggerInterface;
 use Th3Mouk\MaterializedView\Core\Lock\LaneLock;
 use Th3Mouk\MaterializedView\Core\Lock\PrimaryConnectionGuard;
 
@@ -17,11 +18,12 @@ final readonly class DoctrineMigrationsLaneGuard implements LaneGuard
     public function __construct(
         private DependencyFactory $dependencyFactory,
         int $laneNamespace,
+        ?LoggerInterface $logger = null,
     ) {
         $connection = $this->dependencyFactory->getConnection();
 
         $this->primaryConnectionGuard = new PrimaryConnectionGuard($connection);
-        $this->laneLock = new LaneLock($connection, $laneNamespace);
+        $this->laneLock = new LaneLock($connection, $laneNamespace, $logger);
     }
 
     public function ensureConnectedToPrimary(): void

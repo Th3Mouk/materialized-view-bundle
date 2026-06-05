@@ -64,6 +64,7 @@ final class Configuration implements ConfigurationInterface
         self::appendReadiness($rootNode);
         self::appendTemplate($rootNode);
         self::appendDoctrine($rootNode);
+        self::appendLogging($rootNode);
     }
 
     private static function appendGeneration(ArrayNodeDefinition $rootNode): void
@@ -268,6 +269,28 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('orm_write_guard')
                             ->defaultTrue()
                             ->info('Register the onFlush write guard for matview entities.')
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    private static function appendLogging(ArrayNodeDefinition $rootNode): void
+    {
+        $rootNode
+            ->children()
+                ->arrayNode('logging')
+                    ->addDefaultsIfNotSet()
+                    ->info('Monolog bridge: route the library PSR-3 logs to a channel (only effective when MonologBundle is installed; the core stays framework-agnostic).')
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->defaultTrue()
+                            ->info('When false, the library logs to a NullLogger (silent), regardless of Monolog.')
+                        ->end()
+                        ->scalarNode('channel')
+                            ->cannotBeEmpty()
+                            ->defaultValue('materialized_view')
+                            ->info('Monolog channel to write to. Use a dedicated channel (default) or point it at an existing one (e.g. "migration") for fine-grained control of handlers/formatters.')
                         ->end()
                     ->end()
                 ->end()

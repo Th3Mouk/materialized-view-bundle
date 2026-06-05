@@ -7,6 +7,7 @@ namespace Th3Mouk\MaterializedViewBundle\Tests\Integration;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\ErrorHandler\ErrorHandler;
@@ -73,6 +74,16 @@ final class ContainerCompilesTest extends KernelTestCase
         self::assertTrue($container->has('th3mouk_materialized_view.manager'));
         self::assertInstanceOf(MaterializedViewManager::class, $container->get(MaterializedViewManager::class));
         self::assertInstanceOf(MaterializedViewRegistry::class, $container->get(MaterializedViewRegistry::class));
+    }
+
+    public function testLibraryLoggerIsRegisteredAndDefaultsToThePsrAbstractionWithoutMonolog(): void
+    {
+        $container = $this->bootContainer();
+
+        self::assertTrue($container->has('th3mouk_materialized_view.logger'));
+        self::assertInstanceOf(LoggerInterface::class, $container->get('th3mouk_materialized_view.logger'));
+        self::assertTrue($container->getParameter('th3mouk_materialized_view.logging.enabled'));
+        self::assertSame('materialized_view', $container->getParameter('th3mouk_materialized_view.logging.channel'));
     }
 
     /**

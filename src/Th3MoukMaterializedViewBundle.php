@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Th3Mouk\MaterializedViewBundle;
 
 use Override;
+use Psr\Log\NullLogger;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\Alias;
@@ -48,6 +49,8 @@ final class Th3MoukMaterializedViewBundle extends AbstractBundle
 
         $this->configureOrmWriteGuard($builder, $config);
 
+        $this->configureLogger($builder, $config);
+
         $connectionName = self::stringValue($config['connection'] ?? 'default');
         $builder->setAlias(
             Configuration::ALIAS.'.connection',
@@ -62,6 +65,94 @@ final class Th3MoukMaterializedViewBundle extends AbstractBundle
                 ]);
             },
         );
+    }
+
+    public function prependExtension(ContainerConfigurator $container, ContainerBuilder $builder): void
+    {
+        if (!self::monologBundleRegistered($builder)) {
+            return;
+        }
+
+        $logging = $this->resolveLoggingFromRawConfig($builder);
+
+        if (!$logging['enabled']) {
+            return;
+        }
+
+        $builder->prependExtensionConfig('monolog', ['channels' => [$logging['channel']]]);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function configureLogger(ContainerBuilder $builder, array $config): void
+    {
+        $logging = self::section($config, 'logging');
+        $loggerId = Configuration::ALIAS.'.logger';
+
+        if (!self::boolValue($logging['enabled'] ?? true)) {
+            $this->registerNullLogger($builder, $loggerId);
+
+            return;
+        }
+
+        if (self::monologBundleRegistered($builder)) {
+            $channel = self::stringValue($logging['channel'] ?? 'materialized_view');
+            $builder->setAlias($loggerId, new Alias('monolog.logger.'.$channel, false));
+
+            return;
+        }
+
+        if ($builder->has('logger')) {
+            $builder->setAlias($loggerId, new Alias('logger', false));
+
+            return;
+        }
+
+        $this->registerNullLogger($builder, $loggerId);
+    }
+
+    private function registerNullLogger(ContainerBuilder $builder, string $loggerId): void
+    {
+        $builder->register($loggerId, NullLogger::class)->setPublic(false);
+    }
+
+    private static function monologBundleRegistered(ContainerBuilder $builder): bool
+    {
+        $bundles = $builder->getParameter('kernel.bundles');
+
+        return \is_array($bundles) && \array_key_exists('MonologBundle', $bundles);
+    }
+
+    /**
+     * @return array{enabled: bool, channel: string}
+     */
+    private function resolveLoggingFromRawConfig(ContainerBuilder $builder): array
+    {
+        $enabled = true;
+        $channel = 'materialized_view';
+
+        foreach ($builder->getExtensionConfig(Configuration::ALIAS) as $config) {
+            if (!\is_array($config)) {
+                continue;
+            }
+
+            $logging = $config['logging'] ?? null;
+
+            if (!\is_array($logging)) {
+                continue;
+            }
+
+            if (\array_key_exists('enabled', $logging)) {
+                $enabled = (bool) $logging['enabled'];
+            }
+
+            if (\array_key_exists('channel', $logging) && \is_scalar($logging['channel'])) {
+                $channel = (string) $logging['channel'];
+            }
+        }
+
+        return ['enabled' => $enabled, 'channel' => $channel];
     }
 
     /**
@@ -99,6 +190,7 @@ final class Th3MoukMaterializedViewBundle extends AbstractBundle
         $readiness = self::section($config, 'readiness');
         $template = self::section($config, 'template');
         $doctrine = self::section($config, 'doctrine');
+        $logging = self::section($config, 'logging');
 
         $container->parameters()
             ->set($alias.'.connection', $connectionName)
@@ -127,7 +219,9 @@ final class Th3MoukMaterializedViewBundle extends AbstractBundle
             ->set($alias.'.refresh.statement_timeout', self::stringValue($refresh['statement_timeout'] ?? '0'))
             ->set($alias.'.readiness.cache_scope', self::stringValue($readiness['cache_scope'] ?? 'request'))
             ->set($alias.'.template.policy', self::stringValue($template['policy'] ?? 'empty'))
-            ->set($alias.'.doctrine.orm_write_guard', self::boolValue($doctrine['orm_write_guard'] ?? true));
+            ->set($alias.'.doctrine.orm_write_guard', self::boolValue($doctrine['orm_write_guard'] ?? true))
+            ->set($alias.'.logging.enabled', self::boolValue($logging['enabled'] ?? true))
+            ->set($alias.'.logging.channel', self::stringValue($logging['channel'] ?? 'materialized_view'));
     }
 
     /**

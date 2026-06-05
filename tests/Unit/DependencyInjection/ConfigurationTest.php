@@ -153,6 +153,10 @@ final class ConfigurationTest extends TestCase
             ['template' => ['policy' => 'shared_template']],
             'policy',
         ];
+        yield 'logging.channel (empty)' => [
+            ['logging' => ['channel' => '']],
+            'channel',
+        ];
     }
 
     public function testEmptyConnectionIsRejected(): void
@@ -185,5 +189,21 @@ final class ConfigurationTest extends TestCase
         $config = $this->process(['sync' => ['on_missing_dependency' => '%env(MATVIEW_ON_MISSING_DEPENDENCY)%']]);
 
         self::assertSame('%env(MATVIEW_ON_MISSING_DEPENDENCY)%', $config['sync']['on_missing_dependency']);
+    }
+
+    public function testLoggingDefaultsToADedicatedEnabledChannel(): void
+    {
+        $config = $this->process([]);
+
+        self::assertTrue($config['logging']['enabled']);
+        self::assertSame('materialized_view', $config['logging']['channel']);
+    }
+
+    public function testLoggingChannelCanTargetAnExistingApplicationChannel(): void
+    {
+        $config = $this->process(['logging' => ['enabled' => false, 'channel' => 'migration']]);
+
+        self::assertFalse($config['logging']['enabled']);
+        self::assertSame('migration', $config['logging']['channel']);
     }
 }
