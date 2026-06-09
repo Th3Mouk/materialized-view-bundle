@@ -15,4 +15,6 @@ interface LaneGuard
     public function releaseLock(): bool;
 
     public function hasPendingMigrations(): bool;
+
+    public function hasNonTransactionalPendingMigrations(): bool;
 }

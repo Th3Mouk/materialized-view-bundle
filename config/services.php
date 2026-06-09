@@ -263,6 +263,7 @@ return static function (ContainerConfigurator $container): void {
                 service('doctrine.migrations.dependency_factory'),
                 service('th3mouk_materialized_view.registry'),
                 param('th3mouk_materialized_view.lane.lock_namespace'),
+                param('th3mouk_materialized_view.lane.drop_strategy'),
                 $logger,
             ]);
     }

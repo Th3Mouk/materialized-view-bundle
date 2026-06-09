@@ -24,6 +24,24 @@ final class ConfigurationTest extends TestCase
         return new Processor()->processConfiguration(new Configuration(), $configs);
     }
 
+    #[DataProvider('validLaneDropStrategyProvider')]
+    public function testAcceptsEveryDeclaredLaneDropStrategy(string $strategy): void
+    {
+        $config = $this->process(['lane' => ['drop_strategy' => $strategy]]);
+
+        self::assertSame($strategy, $config['lane']['drop_strategy']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function validLaneDropStrategyProvider(): iterable
+    {
+        yield 'all_on_pending' => ['all_on_pending'];
+        yield 'reactive_retry' => ['reactive_retry'];
+        yield 'custom_impact' => ['custom_impact'];
+    }
+
     public function testEmptyConfigurationFillsAllDefaults(): void
     {
         $config = $this->process([]);

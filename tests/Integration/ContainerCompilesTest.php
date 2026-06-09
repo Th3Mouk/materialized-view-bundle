@@ -195,6 +195,24 @@ final class ContainerCompilesTest extends KernelTestCase
         self::assertInstanceOf(DropCommand::class, $container->get('th3mouk_materialized_view.command.drop'));
     }
 
+    public function testLaneDropStrategyDefaultsToAllOnPending(): void
+    {
+        $container = $this->bootContainer();
+
+        self::assertSame('all_on_pending', $container->getParameter('th3mouk_materialized_view.lane.drop_strategy'));
+        self::assertInstanceOf(DoctrineLaneCommand::class, $container->get('th3mouk_materialized_view.command.doctrine_lane'));
+    }
+
+    public function testReactiveLaneDropStrategyFlowsFromConfigIntoTheLaneCommand(): void
+    {
+        self::$matviewConfig = ['lane' => ['drop_strategy' => 'reactive_retry']];
+
+        $container = $this->bootContainer();
+
+        self::assertSame('reactive_retry', $container->getParameter('th3mouk_materialized_view.lane.drop_strategy'));
+        self::assertInstanceOf(DoctrineLaneCommand::class, $container->get('th3mouk_materialized_view.command.doctrine_lane'));
+    }
+
     private function bootContainer(): ContainerInterface
     {
         self::bootKernel();
