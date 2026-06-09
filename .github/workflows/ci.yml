@@ -11,26 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: materialized-view-bundle
-      # The bundle resolves th3mouk/materialized-view through a Composer path repository
-      # (../materialized-view). Check the library out as a sibling at the matching release
-      # tag so the path repo advertises a stable version satisfying the ^1.2 constraint.
-      - uses: actions/checkout@v4
-        with:
-          repository: Th3Mouk/materialized-view
-          ref: v1.2.0
-          path: materialized-view
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           coverage: none
       - run: composer install --no-interaction --prefer-dist
-        working-directory: materialized-view-bundle
       - run: composer cs:check
-        working-directory: materialized-view-bundle
       - run: composer stan
-        working-directory: materialized-view-bundle
 
   test:
     name: Tests (Symfony ${{ matrix.symfony }})
@@ -54,18 +41,9 @@ jobs:
       SYMFONY_REQUIRE: ${{ matrix.symfony }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: materialized-view-bundle
-      - uses: actions/checkout@v4
-        with:
-          repository: Th3Mouk/materialized-view
-          ref: v1.2.0
-          path: materialized-view
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: pdo_pgsql
       - run: composer install --no-interaction --prefer-dist
-        working-directory: materialized-view-bundle
       - run: composer test
-        working-directory: materialized-view-bundle
