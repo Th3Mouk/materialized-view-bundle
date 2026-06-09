@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane;
 
+use Doctrine\DBAL\Driver\AbstractException as DriverAbstractException;
+use Doctrine\DBAL\Exception\DriverException;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewName;
 use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
 use Th3Mouk\MaterializedViewBundle\Lane\DoctrineLane;
 use Th3Mouk\MaterializedViewBundle\Lane\LaneDegradedAfterFailedMigration;
+use Th3Mouk\MaterializedViewBundle\Lane\LaneDropStrategy;
+use Th3Mouk\MaterializedViewBundle\Lane\ReactiveDropMadeNoProgress;
+use Th3Mouk\MaterializedViewBundle\Lane\UnsupportedLaneDropStrategy;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeLaneGuard;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeLaneMigrator;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeManagedViewOperations;
@@ -158,11 +164,128 @@ final class DoctrineLaneTest extends TestCase
         self::assertFalse($log->contains('releaseLock'));
     }
 
+    public function testReactiveStrategyDropsOnlyTheConflictClosureAndRetries(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true);
+        $migrator = new FakeLaneMigrator($log, failWith: $this->dependencyConflict('2BP01'), failTimes: 1);
+        $views = new FakeManagedViewOperations(
+            $log,
+            $this->outcome(rebuilt: ['public.order_totals']),
+            conflictDrops: [MaterializedViewName::create('public', 'order_totals')],
+        );
+
+        $result = new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+
+        self::assertSame(
+            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'migrate', 'dropConflictClosure', 'migrate', 'synchronize', 'releaseLock'],
+            $log->calls(),
+        );
+        self::assertFalse($log->contains('dropAllManaged'), 'The reactive strategy must not drop every managed view.');
+        self::assertTrue($result->managedViewsDropped);
+        self::assertTrue($result->synchronized);
+    }
+
+    public function testReactiveStrategyFallsBackToDropAllWhenANonTransactionalMigrationIsPending(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true, hasNonTransactional: true);
+        $migrator = new FakeLaneMigrator($log);
+        $views = new FakeManagedViewOperations($log, $this->outcome());
+
+        new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+
+        self::assertSame(
+            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
+            $log->calls(),
+        );
+        self::assertFalse($log->contains('dropConflictClosure'));
+    }
+
+    public function testReactiveStrategyAbortsWhenADropRoundFreesNothing(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true);
+        $migrator = new FakeLaneMigrator($log, failWith: $this->dependencyConflict('0A000'));
+        $views = new FakeManagedViewOperations($log, $this->outcome(), conflictDrops: []);
+
+        $this->expectException(ReactiveDropMadeNoProgress::class);
+
+        try {
+            new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+        } finally {
+            self::assertTrue($log->contains('releaseLock'), 'The lane lock must always be released.');
+            self::assertFalse($log->contains('synchronize'));
+        }
+    }
+
+    public function testReactiveStrategyAbortsWhenADropSetRepeatsWithoutProgress(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true);
+        $migrator = new FakeLaneMigrator($log, failWith: $this->dependencyConflict('2BP01'));
+        $views = new FakeManagedViewOperations(
+            $log,
+            $this->outcome(),
+            conflictDrops: [MaterializedViewName::create('public', 'order_totals')],
+        );
+
+        $this->expectException(ReactiveDropMadeNoProgress::class);
+
+        new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+    }
+
+    public function testReactiveStrategyReportsDegradationOnANonConflictMigrationFailure(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true);
+        $migrator = new FakeLaneMigrator($log, failWith: new RuntimeException('unrelated migration error'));
+        $views = new FakeManagedViewOperations($log, $this->outcome());
+
+        $this->expectException(LaneDegradedAfterFailedMigration::class);
+
+        try {
+            new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+        } finally {
+            self::assertFalse($log->contains('dropConflictClosure'), 'A non-conflict failure is not retried.');
+            self::assertTrue($log->contains('releaseLock'));
+        }
+    }
+
+    public function testCustomImpactStrategyFailsLoudly(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true);
+
+        $this->expectException(UnsupportedLaneDropStrategy::class);
+
+        try {
+            new DoctrineLane($guard, new FakeLaneMigrator($log), new FakeManagedViewOperations($log, $this->outcome()), LaneDropStrategy::CustomImpact)->run();
+        } finally {
+            self::assertTrue($log->contains('releaseLock'), 'The lock acquired before dispatch must be released.');
+            self::assertFalse($log->contains('migrate'));
+        }
+    }
+
+    private function dependencyConflict(string $sqlState): DriverException
+    {
+        $message = \sprintf(
+            "ERROR:  cannot drop column total of table orders because other objects depend on it\nDETAIL:  materialized view order_totals depends on column total of table orders [sqlstate %s]",
+            $sqlState,
+        );
+
+        return new DriverException(
+            new class($message, $sqlState) extends DriverAbstractException {},
+            null,
+        );
+    }
+
     /**
      * @param list<string> $created
+     * @param list<string> $rebuilt
      */
-    private function outcome(array $created = []): SyncOutcome
+    private function outcome(array $created = [], array $rebuilt = []): SyncOutcome
     {
-        return SyncOutcome::of($created, [], [], [], []);
+        return SyncOutcome::of($created, $rebuilt, [], [], []);
     }
 }

@@ -15,6 +15,7 @@ final class FakeLaneGuard implements LaneGuard
         private readonly bool $hasPending,
         private readonly bool $lockAcquirable = true,
         private readonly bool $lockHeldAtRelease = true,
+        private readonly bool $hasNonTransactional = false,
     ) {
     }
 
@@ -48,5 +49,12 @@ final class FakeLaneGuard implements LaneGuard
         $this->log->record('hasPendingMigrations');
 
         return $this->hasPending;
+    }
+
+    public function hasNonTransactionalPendingMigrations(): bool
+    {
+        $this->log->record('hasNonTransactionalPendingMigrations');
+
+        return $this->hasNonTransactional;
     }
 }

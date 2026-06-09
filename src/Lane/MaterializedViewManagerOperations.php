@@ -8,9 +8,11 @@ use Doctrine\DBAL\Connection;
 use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewName;
 use Th3Mouk\MaterializedView\Core\Dependency\CatalogDependencyResolver;
 use Th3Mouk\MaterializedView\Core\Dependency\ExternalDependencyGuard;
+use Th3Mouk\MaterializedView\Core\Dependency\PostgresDependencyConflict;
 use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
 use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
+use Throwable;
 
 final readonly class MaterializedViewManagerOperations implements ManagedViewOperations
 {
@@ -21,7 +23,7 @@ final readonly class MaterializedViewManagerOperations implements ManagedViewOpe
     public function __construct(
         private MaterializedViewManager $manager,
         private MaterializedViewRegistry $registry,
-        Connection $connection,
+        private Connection $connection,
     ) {
         $this->dependencyResolver = new CatalogDependencyResolver($connection);
         $this->externalDependencyGuard = new ExternalDependencyGuard($this->dependencyResolver);
@@ -35,6 +37,26 @@ final readonly class MaterializedViewManagerOperations implements ManagedViewOpe
 
         foreach ($this->dependencyResolver->orderedForDrop($this->registry) as $qualifiedName) {
             $this->manager->drop(MaterializedViewName::fromString($qualifiedName));
+        }
+    }
+
+    public function dropConflictClosure(PostgresDependencyConflict $conflict): array
+    {
+        // The failed migration's own transaction was already rolled back before its
+        // exception surfaced, so the surgical drop opens a fresh transaction of its own.
+        $this->connection->beginTransaction();
+
+        try {
+            $dropped = $this->manager->dropConflictClosure($conflict);
+            $this->connection->commit();
+
+            return $dropped;
+        } catch (Throwable $exception) {
+            if ($this->connection->isTransactionActive()) {
+                $this->connection->rollBack();
+            }
+
+            throw $exception;
         }
     }
 

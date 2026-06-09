@@ -22,6 +22,9 @@ use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
 use Th3Mouk\MaterializedViewBundle\Lane\ConsoleLaneMigrator;
 use Th3Mouk\MaterializedViewBundle\Lane\DoctrineLane;
 use Th3Mouk\MaterializedViewBundle\Lane\DoctrineMigrationsLaneGuard;
+use Th3Mouk\MaterializedViewBundle\Lane\DoctrineMigrationsLaneMigrator;
+use Th3Mouk\MaterializedViewBundle\Lane\LaneDropStrategy;
+use Th3Mouk\MaterializedViewBundle\Lane\LaneMigrator;
 use Th3Mouk\MaterializedViewBundle\Lane\LaneResult;
 use Th3Mouk\MaterializedViewBundle\Lane\MaterializedViewManagerOperations;
 
@@ -37,6 +40,8 @@ final class DoctrineLaneCommand extends Command
         private readonly MaterializedViewRegistry $registry,
         #[Autowire(param: 'th3mouk_materialized_view.lane.lock_namespace')]
         private readonly int $laneNamespace,
+        #[Autowire(param: 'th3mouk_materialized_view.lane.drop_strategy')]
+        private readonly string $dropStrategy = 'all_on_pending',
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct();
@@ -58,15 +63,17 @@ final class DoctrineLaneCommand extends Command
         $dryRun = (bool) $input->getOption('dry-run');
 
         $connection = $this->dependencyFactory->getConnection();
+        $strategy = LaneDropStrategy::from($this->dropStrategy);
 
         $lane = new DoctrineLane(
             guard: new DoctrineMigrationsLaneGuard($this->dependencyFactory, $this->laneNamespace, $this->logger),
-            migrator: new ConsoleLaneMigrator($this->requireApplication(), $output),
+            migrator: $this->migratorFor($strategy, $output),
             views: new MaterializedViewManagerOperations(
                 MaterializedViewManager::forConnection($connection, $this->logger),
                 $this->registry,
                 $connection,
             ),
+            strategy: $strategy,
             logger: $this->logger,
         );
 
@@ -81,6 +88,18 @@ final class DoctrineLaneCommand extends Command
     {
         return $this->getApplication()
             ?? throw new LogicException('The lane command must be registered in a console Application.');
+    }
+
+    private function migratorFor(LaneDropStrategy $strategy, OutputInterface $output): LaneMigrator
+    {
+        // The reactive strategy must see the original DBAL DriverException to branch on its
+        // SQLSTATE; the console migrator only exposes an exit code, so it drives migrations
+        // in-process instead.
+        if (LaneDropStrategy::ReactiveRetry === $strategy) {
+            return new DoctrineMigrationsLaneMigrator($this->dependencyFactory);
+        }
+
+        return new ConsoleLaneMigrator($this->requireApplication(), $output);
     }
 
     private function report(SymfonyStyle $io, LaneResult $result): void

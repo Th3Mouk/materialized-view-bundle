@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Th3Mouk\MaterializedViewBundle\Lane;
 
 use Doctrine\Migrations\DependencyFactory;
+use Doctrine\Migrations\Metadata\AvailableMigration;
 use Psr\Log\LoggerInterface;
 use Th3Mouk\MaterializedView\Core\Lock\LaneLock;
 use Th3Mouk\MaterializedView\Core\Lock\PrimaryConnectionGuard;
@@ -49,5 +50,13 @@ final readonly class DoctrineMigrationsLaneGuard implements LaneGuard
     public function hasPendingMigrations(): bool
     {
         return \count($this->dependencyFactory->getMigrationStatusCalculator()->getNewMigrations()) > 0;
+    }
+
+    public function hasNonTransactionalPendingMigrations(): bool
+    {
+        return array_any(
+            $this->dependencyFactory->getMigrationStatusCalculator()->getNewMigrations()->getItems(),
+            static fn (AvailableMigration $available): bool => !$available->getMigration()->isTransactional(),
+        );
     }
 }

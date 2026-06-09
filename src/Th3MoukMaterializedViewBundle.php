@@ -213,6 +213,7 @@ final class Th3MoukMaterializedViewBundle extends AbstractBundle
             ->set($alias.'.async.require_shared_transport', self::boolValue($async['require_shared_transport'] ?? true))
             ->set($alias.'.async.transport_scope', self::stringValue($async['transport_scope'] ?? 'shared'))
             ->set($alias.'.lane.lock_namespace', self::intValue($lane['lock_namespace'] ?? 392818))
+            ->set($alias.'.lane.drop_strategy', self::stringValue($lane['drop_strategy'] ?? 'all_on_pending'))
             ->set($alias.'.refresh.lock_namespace', self::intValue($refresh['lock_namespace'] ?? 392817))
             ->set($alias.'.refresh.analyze_after_refresh', self::boolValue($refresh['analyze_after_refresh'] ?? true))
             ->set($alias.'.refresh.lock_timeout', self::stringValue($refresh['lock_timeout'] ?? '10s'))
