@@ -20,12 +20,6 @@
             "role": "Author"
         }
     ],
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../materialized-view"
-        }
-    ],
     "require": {
         "php": ">=8.4",
         "th3mouk/materialized-view": "^1.2",
