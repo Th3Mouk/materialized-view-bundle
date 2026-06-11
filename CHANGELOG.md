@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-06-11
+
+### Fixed
+- **Deploy lane now applies the configured `sync.on_missing_dependency` and
+  `drop.on_external_dependent` policies.** `matview:doctrine-lane` synchronised views with
+  `SyncOptions::default()` (`fail` / `refuse`), so a configured `on_missing_dependency: skip`
+  was silently ignored at boot — a missing schema/FDW aborted the lane instead of being
+  skipped. The command now threads both policies into `syncAll()` and logs the effective
+  policy (`Lane starting`).
+- **Per-migration progress is logged again under `reactive_retry`.**
+  `DoctrineMigrationsLaneMigrator` built its in-process `DependencyFactory` without a logger,
+  so Doctrine fell back to a `NullLogger` and emitted no `++ migrating … / … migrated` lines.
+  The lane's logger is now forwarded to the factory.
+
 ## [1.2.0] - 2026-06-09
 
 ### Added
