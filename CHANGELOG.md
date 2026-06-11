@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-06-11
+
+### Fixed
+- **Doctrine migration progress is logged even when the database is up to date.** The
+  in-process migrator returned early on an empty plan, and the reactive lane skipped the
+  migrator entirely when no migration was pending — so an up-to-date boot logged nothing from
+  the migration step. The migrator now always runs (Doctrine logs `No migrations to execute.`
+  on an empty plan, `++ migrating … / … migrated` otherwise), and the reactive lane invokes it
+  even with nothing pending. Verified end-to-end: with the lane logger now reaching the
+  migration channel (1.2.1), these lines appear on stdout/Datadog alongside `Lane starting`.
+
 ## [1.2.1] - 2026-06-11
 
 ### Fixed
