@@ -186,6 +186,23 @@ final class DoctrineLaneTest extends TestCase
         self::assertTrue($result->synchronized);
     }
 
+    public function testReactiveStrategyStillRunsTheMigratorWhenNoMigrationsArePending(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: false);
+        $migrator = new FakeLaneMigrator($log);
+        $views = new FakeManagedViewOperations($log, $this->outcome());
+
+        new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+
+        // The migrator must run even with nothing pending so Doctrine logs "No migrations to
+        // execute." — the up-to-date database stays visible in the boot logs.
+        self::assertSame(
+            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'migrate', 'synchronize', 'releaseLock'],
+            $log->calls(),
+        );
+    }
+
     public function testReactiveStrategyFallsBackToDropAllWhenANonTransactionalMigrationIsPending(): void
     {
         $log = new LaneCallLog();

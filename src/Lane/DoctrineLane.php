@@ -96,6 +96,10 @@ final readonly class DoctrineLane
     private function runReactive(): LaneResult
     {
         if (!$this->guard->hasPendingMigrations()) {
+            // Run the migrator anyway so it logs "No migrations to execute." — an up-to-date
+            // database stays visible in the boot logs instead of silently skipping migration.
+            $this->migrator->migrate(false);
+
             return $this->completed(false, false);
         }
 

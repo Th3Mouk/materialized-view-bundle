@@ -46,10 +46,8 @@ final readonly class DoctrineMigrationsLaneMigrator implements LaneMigrator
             $factory->getVersionAliasResolver()->resolveVersionAlias('latest'),
         );
 
-        if (0 === \count($plan->getItems())) {
-            return;
-        }
-
+        // Always invoke the migrator, even on an empty plan: Doctrine logs "No migrations to
+        // execute." so an up-to-date database is still visible in the boot logs.
         $factory->getMigrator()->migrate(
             $plan,
             new MigratorConfiguration()->setDryRun($dryRun)->setAllOrNothing(false),
