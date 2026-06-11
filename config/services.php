@@ -264,6 +264,8 @@ return static function (ContainerConfigurator $container): void {
                 service('th3mouk_materialized_view.registry'),
                 param('th3mouk_materialized_view.lane.lock_namespace'),
                 param('th3mouk_materialized_view.lane.drop_strategy'),
+                service('th3mouk_materialized_view.sync.on_missing_dependency'),
+                service('th3mouk_materialized_view.drop.on_external_dependent'),
                 $logger,
             ]);
     }

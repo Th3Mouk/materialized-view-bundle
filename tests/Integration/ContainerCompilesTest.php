@@ -8,6 +8,7 @@ use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\LoggerInterface;
+use ReflectionProperty;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\ErrorHandler\ErrorHandler;
@@ -211,6 +212,25 @@ final class ContainerCompilesTest extends KernelTestCase
 
         self::assertSame('reactive_retry', $container->getParameter('th3mouk_materialized_view.lane.drop_strategy'));
         self::assertInstanceOf(DoctrineLaneCommand::class, $container->get('th3mouk_materialized_view.command.doctrine_lane'));
+    }
+
+    public function testConfiguredPoliciesFlowIntoTheLaneCommand(): void
+    {
+        self::$matviewConfig = [
+            'sync' => ['on_missing_dependency' => 'skip'],
+            'drop' => ['on_external_dependent' => 'cascade'],
+        ];
+
+        $command = $this->bootContainer()->get('th3mouk_materialized_view.command.doctrine_lane');
+        self::assertInstanceOf(DoctrineLaneCommand::class, $command);
+
+        self::assertSame(MissingDependencyPolicy::Skip, $this->laneProperty($command, 'missingDependencyPolicy'));
+        self::assertSame(DropDependentPolicy::Cascade, $this->laneProperty($command, 'dropDependentPolicy'));
+    }
+
+    private function laneProperty(DoctrineLaneCommand $command, string $property): mixed
+    {
+        return new ReflectionProperty(DoctrineLaneCommand::class, $property)->getValue($command);
     }
 
     private function bootContainer(): ContainerInterface

@@ -11,6 +11,7 @@ use Th3Mouk\MaterializedView\Core\Dependency\ExternalDependencyGuard;
 use Th3Mouk\MaterializedView\Core\Dependency\PostgresDependencyConflict;
 use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
+use Th3Mouk\MaterializedView\Core\Sync\SyncOptions;
 use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
 use Throwable;
 
@@ -24,6 +25,8 @@ final readonly class MaterializedViewManagerOperations implements ManagedViewOpe
         private MaterializedViewManager $manager,
         private MaterializedViewRegistry $registry,
         private Connection $connection,
+        // Null falls back to SyncOptions::default() in the manager; the lane passes the configured policies.
+        private ?SyncOptions $syncOptions = null,
     ) {
         $this->dependencyResolver = new CatalogDependencyResolver($connection);
         $this->externalDependencyGuard = new ExternalDependencyGuard($this->dependencyResolver);
@@ -62,6 +65,6 @@ final readonly class MaterializedViewManagerOperations implements ManagedViewOpe
 
     public function synchronize(): SyncOutcome
     {
-        return $this->manager->syncAll($this->registry);
+        return $this->manager->syncAll($this->registry, $this->syncOptions);
     }
 }

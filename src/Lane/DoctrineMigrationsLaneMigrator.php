@@ -8,6 +8,7 @@ use Doctrine\Migrations\Configuration\Connection\ExistingConnection;
 use Doctrine\Migrations\Configuration\Migration\ExistingConfiguration;
 use Doctrine\Migrations\DependencyFactory;
 use Doctrine\Migrations\MigratorConfiguration;
+use Psr\Log\LoggerInterface;
 
 /**
  * Runs Doctrine Migrations in-process via the DependencyFactory, so the original DBAL
@@ -22,6 +23,9 @@ use Doctrine\Migrations\MigratorConfiguration;
  *   - The metadata storage is initialised before planning: a freshly template-cloned tenant
  *     database has no migration-versions table yet, which would otherwise abort planning.
  *
+ * A logger is forwarded to each fresh DependencyFactory: without one Doctrine defaults to a
+ * NullLogger and the in-process run emits no "++ migrating ..." progress at all.
+ *
  * allOrNothing is disabled so a retry resumes from the version that failed rather than
  * rolling the whole batch back.
  */
@@ -29,6 +33,7 @@ final readonly class DoctrineMigrationsLaneMigrator implements LaneMigrator
 {
     public function __construct(
         private DependencyFactory $dependencyFactory,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -56,6 +61,7 @@ final readonly class DoctrineMigrationsLaneMigrator implements LaneMigrator
         return DependencyFactory::fromConnection(
             new ExistingConfiguration($this->dependencyFactory->getConfiguration()),
             new ExistingConnection($this->dependencyFactory->getConnection()),
+            $this->logger,
         );
     }
 }
