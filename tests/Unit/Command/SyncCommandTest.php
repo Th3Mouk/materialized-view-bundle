@@ -11,6 +11,7 @@ use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
+use Th3Mouk\MaterializedView\Core\Database\DatabaseException;
 use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewDefinition;
 use Th3Mouk\MaterializedView\Core\Definition\RebuildStrategy;
 use Th3Mouk\MaterializedView\Core\Definition\SqlFileSource;
@@ -245,7 +246,9 @@ final class SyncCommandTest extends CommandTestCase
             missingDependencyPolicy: MissingDependencyPolicy::Fail,
         ));
 
-        $this->expectException(DriverException::class);
+        // Since lib 1.3, the DBAL connection is wrapped by the Core\Database\Connection port,
+        // which surfaces driver errors as DatabaseException rather than the raw DBAL exception.
+        $this->expectException(DatabaseException::class);
 
         $tester->execute([]);
     }

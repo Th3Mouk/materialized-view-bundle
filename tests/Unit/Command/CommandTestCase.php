@@ -17,6 +17,7 @@ use Th3Mouk\MaterializedView\Core\Introspection\ReadinessChecker;
 use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
 use Th3Mouk\MaterializedView\Core\Sync\MaterializedViewComparator;
+use Th3Mouk\MaterializedView\Dbal\DbalConnection;
 
 abstract class CommandTestCase extends TestCase
 {
@@ -49,24 +50,24 @@ abstract class CommandTestCase extends TestCase
     protected function comparator(Connection $connection): MaterializedViewComparator
     {
         return new MaterializedViewComparator(
-            new PostgreSqlMaterializedViewIntrospector($connection),
+            new PostgreSqlMaterializedViewIntrospector(new DbalConnection($connection)),
             DefinitionHasher::create(),
         );
     }
 
     protected function introspector(Connection $connection): PostgreSqlMaterializedViewIntrospector
     {
-        return new PostgreSqlMaterializedViewIntrospector($connection);
+        return new PostgreSqlMaterializedViewIntrospector(new DbalConnection($connection));
     }
 
     protected function readinessChecker(Connection $connection): ReadinessChecker
     {
-        return new ReadinessChecker($connection);
+        return new ReadinessChecker(new DbalConnection($connection));
     }
 
     protected function dependencyResolver(Connection $connection): CatalogDependencyResolver
     {
-        return new CatalogDependencyResolver($connection);
+        return new CatalogDependencyResolver(new DbalConnection($connection));
     }
 
     protected function externalDependencyGuard(Connection $connection): ExternalDependencyGuard

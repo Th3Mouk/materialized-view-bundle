@@ -6,11 +6,11 @@ namespace Th3Mouk\MaterializedViewBundle\Tests\Integration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\DBAL\Tools\DsnParser;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Th3Mouk\MaterializedView\Core\Database\DatabaseException;
 use Th3Mouk\MaterializedView\Core\Definition\InlineSqlSource;
 use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewDefinition;
 use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
@@ -70,7 +70,8 @@ final class LaneMissingDependencyPolicyTest extends TestCase
 
     public function testFailPolicyAbortsOnAViewWithAMissingDependency(): void
     {
-        $this->expectException(DbalException::class);
+        // Since lib 1.3 the connection port surfaces driver errors as DatabaseException.
+        $this->expectException(DatabaseException::class);
 
         $this->operations(MissingDependencyPolicy::Fail)->synchronize();
     }
