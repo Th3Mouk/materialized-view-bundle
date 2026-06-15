@@ -5,7 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.3] - 2026-06-15
+
+### Changed
+- **Requires `th3mouk/materialized-view ^1.3`.** The library's `Core` now runs on its own
+  `Connection` port instead of Doctrine DBAL directly. The bundle wires the configured DBAL
+  connection through the library's `DbalConnection` adapter — a new
+  `th3mouk_materialized_view.core_connection` service — into the introspector, readiness
+  checker and dependency resolver, and through the same adapter in the deploy-lane guard and
+  managed-view operations. No bundle behaviour or configuration changes; the manager still
+  builds via `MaterializedViewManager::forConnection()`. Library query failures now surface as
+  `Th3Mouk\MaterializedView\Core\Database\DatabaseException` (carrying the same SQLSTATE)
+  instead of a raw `Doctrine\DBAL\Exception`; the reactive deploy lane is unaffected, as it
+  classifies Doctrine Migrations' own DBAL exceptions, not the library's.
 
 ## [1.2.2] - 2026-06-11
 
@@ -101,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Development dependency `phpunit/phpunit` upgraded to `^13.0`.
 
-[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.0...HEAD
+[1.2.3]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.2...v1.2.3
 [1.2.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Th3Mouk/materialized-view-bundle/releases/tag/v1.0.0

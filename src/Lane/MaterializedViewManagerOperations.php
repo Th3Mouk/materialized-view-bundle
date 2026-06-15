@@ -13,6 +13,7 @@ use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
 use Th3Mouk\MaterializedView\Core\Sync\SyncOptions;
 use Th3Mouk\MaterializedView\Core\Sync\SyncOutcome;
+use Th3Mouk\MaterializedView\Dbal\DbalConnection;
 use Throwable;
 
 final readonly class MaterializedViewManagerOperations implements ManagedViewOperations
@@ -28,7 +29,10 @@ final readonly class MaterializedViewManagerOperations implements ManagedViewOpe
         // Null falls back to SyncOptions::default() in the manager; the lane passes the configured policies.
         private ?SyncOptions $syncOptions = null,
     ) {
-        $this->dependencyResolver = new CatalogDependencyResolver($connection);
+        // th3mouk/materialized-view's Core runs on its Connection port; bridge the DBAL
+        // connection through the adapter. The raw DBAL connection ($this->connection) is
+        // kept for the conflict-drop transaction in dropConflictClosure().
+        $this->dependencyResolver = new CatalogDependencyResolver(new DbalConnection($connection));
         $this->externalDependencyGuard = new ExternalDependencyGuard($this->dependencyResolver);
     }
 
