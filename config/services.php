@@ -22,6 +22,7 @@ use Th3Mouk\MaterializedView\Core\Refresh\RefreshTargetResolver;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
 use Th3Mouk\MaterializedView\Core\Sync\MaterializedViewComparator;
 use Th3Mouk\MaterializedView\Core\Sync\MissingDependencyPolicy;
+use Th3Mouk\MaterializedView\Dbal\DbalConnection;
 use Th3Mouk\MaterializedView\DoctrineOrm\Listener\MaterializedViewPostLoadListener;
 use Th3Mouk\MaterializedView\DoctrineOrm\Listener\MaterializedViewWriteGuard;
 use Th3Mouk\MaterializedView\DoctrineOrm\Mapping\MaterializedViewMetadataReader;
@@ -63,12 +64,18 @@ return static function (ContainerConfigurator $container): void {
     $connection = service('th3mouk_materialized_view.connection');
     $logger = service('th3mouk_materialized_view.logger');
 
+    // Since library 1.3, its collaborators speak the framework-agnostic Core\Database\Connection
+    // port rather than Doctrine DBAL directly. Wrap the DBAL connection once and inject the port.
+    $services->set('th3mouk_materialized_view.connection_port', DbalConnection::class)
+        ->args([$connection]);
+    $connectionPort = service('th3mouk_materialized_view.connection_port');
+
     $services->set('th3mouk_materialized_view.introspector', PostgreSqlMaterializedViewIntrospector::class)
-        ->args([$connection, $logger]);
+        ->args([$connectionPort, $logger]);
     $services->alias(PostgreSqlMaterializedViewIntrospector::class, 'th3mouk_materialized_view.introspector');
 
     $services->set('th3mouk_materialized_view.readiness_checker', ReadinessChecker::class)
-        ->args([$connection, $logger]);
+        ->args([$connectionPort, $logger]);
     $services->alias(ReadinessChecker::class, 'th3mouk_materialized_view.readiness_checker');
 
     $services->set('th3mouk_materialized_view.hasher', DefinitionHasher::class)
@@ -82,7 +89,7 @@ return static function (ContainerConfigurator $container): void {
     $services->alias(MaterializedViewComparator::class, 'th3mouk_materialized_view.comparator');
 
     $services->set('th3mouk_materialized_view.dependency_resolver', CatalogDependencyResolver::class)
-        ->args([$connection]);
+        ->args([$connectionPort]);
     $services->alias(CatalogDependencyResolver::class, 'th3mouk_materialized_view.dependency_resolver');
 
     $services->set('th3mouk_materialized_view.external_dependency_guard', ExternalDependencyGuard::class)
