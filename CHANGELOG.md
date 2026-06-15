@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0]
+
+### Changed
+- **Requires `th3mouk/materialized-view` `^1.3`.** Library 1.3 introduced the
+  framework-agnostic `Core\Database\Connection` port, so `CatalogDependencyResolver`,
+  `PrimaryConnectionGuard`, `LaneLock`, `ReadinessChecker` and the introspector no longer
+  accept a `Doctrine\DBAL\Connection` directly. The bundle now wraps its DBAL connection in
+  the library's `Dbal\DbalConnection` adapter before handing it to those collaborators. This
+  restores compatibility — bundle 1.2.x is broken against library 1.3 (`TypeError`).
+
+### Fixed
+- **The deploy lane now applies the configured `drop.on_external_dependent` policy to the
+  reactive drop and the drop-all fallback**, not only to synchronisation (1.2.1). Previously
+  `dropConflictClosure()` and `dropAllManaged()` always used `Refuse`, so a configured
+  `cascade` was ignored: under `reactive_retry`, a migration whose conflicting closure
+  included an unmanaged dependent (e.g. a Superset view on a managed matview) was refused at
+  boot instead of being cascaded. The lane now threads the policy carried on its `SyncOptions`
+  into both drop paths.
+
 ## [1.2.2] - 2026-06-11
 
 ### Fixed
@@ -101,7 +120,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Development dependency `phpunit/phpunit` upgraded to `^13.0`.
 
-[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Th3Mouk/materialized-view-bundle/releases/tag/v1.0.0

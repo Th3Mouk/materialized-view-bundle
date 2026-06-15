@@ -9,6 +9,7 @@ use Doctrine\Migrations\Metadata\AvailableMigration;
 use Psr\Log\LoggerInterface;
 use Th3Mouk\MaterializedView\Core\Lock\LaneLock;
 use Th3Mouk\MaterializedView\Core\Lock\PrimaryConnectionGuard;
+use Th3Mouk\MaterializedView\Dbal\DbalConnection;
 
 final readonly class DoctrineMigrationsLaneGuard implements LaneGuard
 {
@@ -21,7 +22,7 @@ final readonly class DoctrineMigrationsLaneGuard implements LaneGuard
         int $laneNamespace,
         ?LoggerInterface $logger = null,
     ) {
-        $connection = $this->dependencyFactory->getConnection();
+        $connection = new DbalConnection($this->dependencyFactory->getConnection());
 
         $this->primaryConnectionGuard = new PrimaryConnectionGuard($connection);
         $this->laneLock = new LaneLock($connection, $laneNamespace, $logger);

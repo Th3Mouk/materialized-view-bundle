@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewName;
 use Th3Mouk\MaterializedView\Core\Exception\ViewNotPopulated;
 use Th3Mouk\MaterializedView\Core\Introspection\ReadinessChecker;
+use Th3Mouk\MaterializedView\Dbal\DbalConnection;
 use Th3Mouk\MaterializedViewBundle\Readiness\MaterializedViewReadinessGuard;
 use Th3Mouk\MaterializedViewBundle\Readiness\ReadinessCacheScope;
 
@@ -55,7 +56,7 @@ final class MaterializedViewReadinessGuardTest extends TestCase
             )
             ->willReturn(true);
 
-        $guard = new MaterializedViewReadinessGuard(new ReadinessChecker($connection));
+        $guard = new MaterializedViewReadinessGuard(new ReadinessChecker(new DbalConnection($connection)));
 
         self::assertTrue($guard->isReady('sales_by_category'));
     }
@@ -64,7 +65,7 @@ final class MaterializedViewReadinessGuardTest extends TestCase
     {
         $reads = 0;
         $guard = new MaterializedViewReadinessGuard(
-            new ReadinessChecker($this->countingConnection($reads)),
+            new ReadinessChecker(new DbalConnection($this->countingConnection($reads))),
             ReadinessCacheScope::Process,
         );
 
@@ -80,7 +81,7 @@ final class MaterializedViewReadinessGuardTest extends TestCase
     {
         $reads = 0;
         $guard = new MaterializedViewReadinessGuard(
-            new ReadinessChecker($this->countingConnection($reads)),
+            new ReadinessChecker(new DbalConnection($this->countingConnection($reads))),
             ReadinessCacheScope::Request,
         );
 
@@ -98,7 +99,7 @@ final class MaterializedViewReadinessGuardTest extends TestCase
     {
         $reads = 0;
         $guard = new MaterializedViewReadinessGuard(
-            new ReadinessChecker($this->countingConnection($reads)),
+            new ReadinessChecker(new DbalConnection($this->countingConnection($reads))),
             ReadinessCacheScope::None,
         );
 
@@ -114,7 +115,7 @@ final class MaterializedViewReadinessGuardTest extends TestCase
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchOne')->willReturn($populated);
 
-        return new MaterializedViewReadinessGuard(new ReadinessChecker($connection));
+        return new MaterializedViewReadinessGuard(new ReadinessChecker(new DbalConnection($connection)));
     }
 
     private function countingConnection(int &$reads): Connection
