@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-06-23
+
+### Fixed
+- **The deploy lane self-heals a drifted migration metadata storage instead of aborting at boot.**
+  `DoctrineLane` read migration status (`hasPendingMigrations()`) before anything called
+  `ensureInitialized()`, so a `doctrine_migration_versions` table whose schema had drifted from the
+  one `doctrine/migrations` expects made `matview:doctrine-lane` abort with `"The metadata storage
+  is not up to date…"` before any migration ran — whereas a plain `doctrine:migrations:migrate`
+  self-heals (`MigrateCommand` initialises the storage first). The lane now initialises the metadata
+  storage on the guard's `DependencyFactory` before the first status read, under the advisory lock,
+  for every strategy (idempotent; a no-op once the schema is already current).
+
 ## [1.3.0] - 2026-06-15
 
 ### Changed
@@ -120,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Development dependency `phpunit/phpunit` upgraded to `^13.0`.
 
-[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.0...v1.2.1
