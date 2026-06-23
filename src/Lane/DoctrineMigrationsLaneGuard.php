@@ -33,6 +33,11 @@ final readonly class DoctrineMigrationsLaneGuard implements LaneGuard
         $this->primaryConnectionGuard->ensureConnectedToPrimary();
     }
 
+    public function ensureMetadataInitialized(): void
+    {
+        $this->dependencyFactory->getMetadataStorage()->ensureInitialized();
+    }
+
     public function acquireLock(): void
     {
         $this->laneLock->acquire();
