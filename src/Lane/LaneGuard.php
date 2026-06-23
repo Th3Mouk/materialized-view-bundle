@@ -8,6 +8,8 @@ interface LaneGuard
 {
     public function ensureConnectedToPrimary(): void;
 
+    public function ensureMetadataInitialized(): void;
+
     public function acquireLock(): void;
 
     public function tryAcquireLock(): bool;

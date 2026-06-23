@@ -34,7 +34,7 @@ final class DoctrineLaneTest extends TestCase
         $result = new DoctrineLane($guard, $migrator, $views)->run();
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
         self::assertTrue($result->migrationsPending);
@@ -54,7 +54,7 @@ final class DoctrineLaneTest extends TestCase
         $result = new DoctrineLane($guard, $migrator, $views)->run();
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
         self::assertFalse($result->managedViewsDropped);
@@ -89,7 +89,7 @@ final class DoctrineLaneTest extends TestCase
 
         self::assertFalse($log->contains('synchronize'));
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'releaseLock'],
             $log->calls(),
         );
     }
@@ -140,7 +140,7 @@ final class DoctrineLaneTest extends TestCase
         $result = new DoctrineLane($guard, $migrator, $views)->run(dryRun: true);
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'tryAcquireLock', 'hasPendingMigrations', 'migrate', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'tryAcquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'migrate', 'releaseLock'],
             $log->calls(),
         );
         self::assertTrue($migrator->dryRunSeen);
@@ -178,7 +178,7 @@ final class DoctrineLaneTest extends TestCase
         $result = new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'migrate', 'dropConflictClosure', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'migrate', 'dropConflictClosure', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
         self::assertFalse($log->contains('dropAllManaged'), 'The reactive strategy must not drop every managed view.');
@@ -198,7 +198,7 @@ final class DoctrineLaneTest extends TestCase
         // The migrator must run even with nothing pending so Doctrine logs "No migrations to
         // execute." — the up-to-date database stays visible in the boot logs.
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
     }
@@ -213,7 +213,7 @@ final class DoctrineLaneTest extends TestCase
         new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
         self::assertFalse($log->contains('dropConflictClosure'));

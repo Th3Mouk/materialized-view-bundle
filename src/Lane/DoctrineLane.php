@@ -50,6 +50,8 @@ final readonly class DoctrineLane
         }
 
         try {
+            $this->guard->ensureMetadataInitialized();
+
             $pending = $this->guard->hasPendingMigrations();
 
             $this->logger->info('Lane dry-run: {count} migration(s) pending.', [
@@ -66,6 +68,8 @@ final readonly class DoctrineLane
 
     private function runLocked(): LaneResult
     {
+        $this->guard->ensureMetadataInitialized();
+
         return match ($this->strategy) {
             LaneDropStrategy::AllOnPending => $this->runDropAllOnPending(),
             LaneDropStrategy::ReactiveRetry => $this->runReactive(),

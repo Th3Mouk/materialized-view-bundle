@@ -24,6 +24,11 @@ final class FakeLaneGuard implements LaneGuard
         $this->log->record('ensureConnectedToPrimary');
     }
 
+    public function ensureMetadataInitialized(): void
+    {
+        $this->log->record('ensureMetadataInitialized');
+    }
+
     public function acquireLock(): void
     {
         $this->log->record('acquireLock');
