@@ -7,6 +7,7 @@ Bundle-level and multi-database boot scenarios. Core scenarios are in the native
 - Kernel test: the bundle boots and registers services.
 - Autoconfiguration: `#[AsMaterializedViewProvider]` classes are collected into the registry, without an application interface (incl. the `method:` variant).
 - Configuration tree: defaults, validation, and each option in [Configuration reference](../guide/configuration-reference.md).
+- `matview:refresh --only-unpopulated`: refreshes unpopulated views, skips populated ones, exits `0` when nothing is left, refused with `--concurrently` or `--if-populated`; on PostgreSQL, populated views stay untouched and dependency order is kept.
 - Command wiring: `list`, `validate`, `diff`, `drop --if-pending`, `sync`, `prune`, `doctrine-lane`, `refresh`, `dump-sql`, `generate`.
 - `DependencyFactory` injected via `#[Autowire(service: 'doctrine.migrations.dependency_factory')]`.
 - `Async` refuses a per-connection Doctrine transport when no shared transport is configured.

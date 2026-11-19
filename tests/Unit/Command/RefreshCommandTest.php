@@ -7,6 +7,7 @@ namespace Th3Mouk\MaterializedViewBundle\Tests\Unit\Command;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Th3Mouk\MaterializedView\Core\Definition\MaterializedViewDefinition;
@@ -119,8 +120,106 @@ final class RefreshCommandTest extends CommandTestCase
         self::assertContains("SET statement_timeout = '30s'", $statements);
     }
 
+    public function testOnlyUnpopulatedRefreshesAnUnpopulatedView(): void
+    {
+        $statements = [];
+        $tester = new CommandTester($this->commandOver($this->catalogConnection(false, $statements)));
+        $exit = $tester->execute(['name' => 'public.demo', '--only-unpopulated' => true]);
+
+        self::assertSame(Command::SUCCESS, $exit);
+        self::assertStringContainsString('Refreshed "public.demo".', $tester->getDisplay());
+        self::assertContains('REFRESH MATERIALIZED VIEW "public"."demo"', $statements);
+    }
+
+    public function testOnlyUnpopulatedSkipsAPopulatedView(): void
+    {
+        $statements = [];
+        $tester = new CommandTester($this->commandOver($this->catalogConnection(true, $statements)));
+        $exit = $tester->execute(['name' => 'public.demo', '--only-unpopulated' => true]);
+
+        self::assertSame(Command::SUCCESS, $exit);
+        self::assertStringContainsString('Skipped "public.demo": already populated.', $tester->getDisplay());
+        self::assertNotContains('REFRESH MATERIALIZED VIEW "public"."demo"', $statements);
+    }
+
+    public function testOnlyUnpopulatedWithAllExitsSuccessfullyWhenEverythingIsPopulated(): void
+    {
+        $statements = [];
+        $tester = new CommandTester($this->commandOver($this->catalogConnection(true, $statements)));
+        $exit = $tester->execute(['--all' => true, '--only-unpopulated' => true]);
+
+        self::assertSame(Command::SUCCESS, $exit);
+        self::assertStringContainsString('Skipped "public.demo": already populated.', $tester->getDisplay());
+        self::assertStringContainsString('Refreshed 0 materialized view(s).', $tester->getDisplay());
+        self::assertNotContains('REFRESH MATERIALIZED VIEW "public"."demo"', $statements);
+    }
+
+    public function testOnlyUnpopulatedWithAllRefreshesTheUnpopulatedView(): void
+    {
+        $statements = [];
+        $tester = new CommandTester($this->commandOver($this->catalogConnection(false, $statements)));
+        $exit = $tester->execute(['--all' => true, '--only-unpopulated' => true]);
+
+        self::assertSame(Command::SUCCESS, $exit);
+        self::assertStringContainsString('Refreshed 1 materialized view(s).', $tester->getDisplay());
+        self::assertContains('REFRESH MATERIALIZED VIEW "public"."demo"', $statements);
+    }
+
+    public function testOnlyUnpopulatedCannotBeCombinedWithConcurrently(): void
+    {
+        $tester = new CommandTester($this->command());
+        $exit = $tester->execute(['--all' => true, '--only-unpopulated' => true, '--concurrently' => true]);
+
+        self::assertSame(Command::INVALID, $exit);
+        self::assertStringContainsString('cannot be combined with --concurrently', $tester->getDisplay());
+    }
+
+    public function testOnlyUnpopulatedCannotBeCombinedWithIfPopulated(): void
+    {
+        $tester = new CommandTester($this->command());
+        $exit = $tester->execute(['name' => 'public.demo', '--only-unpopulated' => true, '--if-populated' => true]);
+
+        self::assertSame(Command::INVALID, $exit);
+        self::assertStringContainsString('cannot be combined with --if-populated', $tester->getDisplay());
+    }
+
     /**
      * @param list<string> $statements
+     *
+     * @return Connection&Stub
+     */
+    private function catalogConnection(bool $populated, array &$statements): Connection
+    {
+        $connection = $this->recordingConnection($statements);
+        $connection->method('fetchAllAssociative')->willReturn([]);
+        $connection->method('fetchAssociative')->willReturn([
+            'schema_name' => 'public',
+            'view_name' => 'demo',
+            'definition' => 'SELECT 1',
+            'is_populated' => $populated,
+            'comment' => null,
+        ]);
+
+        return $connection;
+    }
+
+    private function commandOver(Connection $connection): RefreshCommand
+    {
+        return new RefreshCommand(
+            $this->registry([$this->definition()]),
+            MaterializedViewManager::forConnection($connection),
+            $this->introspector($connection),
+            $this->readinessChecker($connection),
+            true,
+            '10s',
+            '0',
+        );
+    }
+
+    /**
+     * @param list<string> $statements
+     *
+     * @return Connection&Stub
      */
     private function recordingConnection(array &$statements): Connection
     {

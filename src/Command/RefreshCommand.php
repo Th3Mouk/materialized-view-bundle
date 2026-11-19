@@ -16,6 +16,7 @@ use Th3Mouk\MaterializedView\Core\Introspection\PostgreSqlMaterializedViewIntros
 use Th3Mouk\MaterializedView\Core\Introspection\ReadinessChecker;
 use Th3Mouk\MaterializedView\Core\MaterializedViewManager;
 use Th3Mouk\MaterializedView\Core\Refresh\RefreshOptions;
+use Th3Mouk\MaterializedView\Core\Refresh\RefreshOutcome;
 use Th3Mouk\MaterializedView\Core\Registry\MaterializedViewRegistry;
 
 #[AsCommand(
@@ -43,6 +44,7 @@ final class RefreshCommand extends Command
             ->addOption('all', null, InputOption::VALUE_NONE, 'Refresh every declared view in dependency order.')
             ->addOption('concurrently', null, InputOption::VALUE_NONE, 'Force REFRESH MATERIALIZED VIEW CONCURRENTLY.')
             ->addOption('if-populated', null, InputOption::VALUE_NONE, 'Skip a concurrent refresh on an unpopulated view.')
+            ->addOption('only-unpopulated', null, InputOption::VALUE_NONE, 'Refresh only the views that exist and are not populated yet; skip the others.')
             ->addOption('no-analyze', null, InputOption::VALUE_NONE, 'Skip ANALYZE after refresh. Overrides refresh.analyze_after_refresh.')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Override the configured lock_timeout and statement_timeout for this run (e.g. 30s).');
     }
@@ -66,11 +68,26 @@ final class RefreshCommand extends Command
             return Command::INVALID;
         }
 
+        $onlyUnpopulated = (bool) $input->getOption('only-unpopulated');
+
+        if ($onlyUnpopulated && $input->getOption('concurrently')) {
+            $style->error('--only-unpopulated cannot be combined with --concurrently: an unpopulated view cannot be refreshed concurrently.');
+
+            return Command::INVALID;
+        }
+
+        if ($onlyUnpopulated && $input->getOption('if-populated')) {
+            $style->error('--only-unpopulated cannot be combined with --if-populated: they select opposite views.');
+
+            return Command::INVALID;
+        }
+
         $options = $this->buildOptions($input);
 
         if ($all) {
-            $this->manager->refreshAll($this->registry, $options);
-            $style->success(\sprintf('Refreshed %d materialized view(s).', $this->registry->count()));
+            $outcome = $this->manager->refreshAll($this->registry, $options);
+            $this->reportSkipped($style, $outcome);
+            $style->success(\sprintf('Refreshed %d materialized view(s).', \count($outcome->refreshed)));
 
             return Command::SUCCESS;
         }
@@ -84,10 +101,29 @@ final class RefreshCommand extends Command
             return Command::SUCCESS;
         }
 
-        $this->manager->refresh($definition, $options);
+        $outcome = $this->manager->refresh($definition, $options);
+
+        if ([] === $outcome->refreshed) {
+            $this->reportSkipped($style, $outcome);
+
+            return Command::SUCCESS;
+        }
+
         $style->success(\sprintf('Refreshed "%s".', $definition->name()->qualifiedName()));
 
         return Command::SUCCESS;
+    }
+
+    private function reportSkipped(SymfonyStyle $style, RefreshOutcome $outcome): void
+    {
+        $lines = [
+            ...array_map(static fn (string $view): string => \sprintf('Skipped "%s": already populated.', $view), $outcome->skippedPopulated),
+            ...array_map(static fn (string $view): string => \sprintf('Skipped "%s": does not exist.', $view), $outcome->skippedMissing),
+        ];
+
+        if ([] !== $lines) {
+            $style->note($lines);
+        }
     }
 
     private function buildOptions(InputInterface $input): RefreshOptions
@@ -97,6 +133,7 @@ final class RefreshCommand extends Command
 
         return RefreshOptions::default()
             ->withConcurrently((bool) $input->getOption('concurrently'))
+            ->withOnlyUnpopulated((bool) $input->getOption('only-unpopulated'))
             ->withAnalyzeAfterRefresh($input->getOption('no-analyze') ? false : $this->analyzeAfterRefreshByDefault)
             ->withLockTimeout($hasOverride ? $override : $this->defaultLockTimeout)
             ->withStatementTimeout($hasOverride ? $override : $this->defaultStatementTimeout);
