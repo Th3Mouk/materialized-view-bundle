@@ -14,6 +14,7 @@ All commands are registered by the bundle. DDL/refresh operations always route t
 | `matview:doctrine-lane` | Hold a lock and run `drop → migrate → sync` in one process |
 | `matview:refresh <name>` | Refresh one view |
 | `matview:refresh --all` | Refresh in catalog-derived dependency order |
+| `matview:refresh --all --only-unpopulated` | Refresh only the unpopulated views, in dependency order |
 | `matview:dump-sql` | Print `up`/`down` SQL for the migration-owned mode |
 
 ## Important options
@@ -21,6 +22,7 @@ All commands are registered by the bundle. DDL/refresh operations always route t
 - `--concurrently` — force `REFRESH MATERIALIZED VIEW CONCURRENTLY`.
 - `--no-data` — create without data.
 - `--if-populated` — skip a concurrent refresh on an unpopulated view.
+- `--only-unpopulated` — `matview:refresh` only: refresh the declared views that exist and are unpopulated (`relispopulated = false`) and skip the others, reporting each skipped view and exiting `0` when nothing needs refreshing. With a view name, that view is refreshed only if it is unpopulated. Meant for a run right after a deployment, for views declared `WITH NO DATA` and populated manually. It is refused together with `--concurrently` (a concurrent refresh is impossible on an unpopulated view) and with `--if-populated` (the two select opposite views). See the core's [Refresh runtime & locking](../../../materialized-view/docs/guide/refresh-and-locking.md).
 - `--refresh-initial` — allow `sync` to do a synchronous first refresh.
 - `--enqueue-refresh` — ask the bundle to schedule initial refreshes asynchronously.
 - `--timeout=30s` — apply `lock_timeout` and `statement_timeout`.

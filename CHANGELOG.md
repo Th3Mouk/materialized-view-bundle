@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`matview:refresh --only-unpopulated`** — refreshes only the declared views that exist and are
+  unpopulated (`pg_class.relispopulated = false`), in dependency order with `--all`, or the named
+  view when it is unpopulated. Populated views are skipped and reported, and the command exits `0`
+  when nothing needs refreshing, so a run right after a deployment is nearly free when no view was
+  rebuilt. It is refused together with `--concurrently` and `--if-populated`. See
+  [Console commands](docs/guide/commands.md).
+
+### Changed
+- **Requires `th3mouk/materialized-view` `^1.5`.** The selection lives in the core's
+  `RefreshOptions::withOnlyUnpopulated()`, which returns a `RefreshOutcome`.
+
 ## [1.4.0] - 2026-11-19
 
 ### Changed
