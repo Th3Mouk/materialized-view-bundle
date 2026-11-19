@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-19
+
 ### Changed
 - **`reactive_retry` no longer drops every managed view for a pending non-transactional
   migration that cannot conflict.** The deploy lane used to fall back to dropping all managed
@@ -150,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Development dependency `phpunit/phpunit` upgraded to `^13.0`.
 
-[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/Th3Mouk/materialized-view-bundle/compare/v1.2.1...v1.2.2
