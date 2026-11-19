@@ -10,12 +10,16 @@ final class FakeLaneGuard implements LaneGuard
 {
     public int $releaseCount = 0;
 
+    /**
+     * @param list<string> $dependencyUnsafeNonTransactional
+     */
     public function __construct(
         private readonly LaneCallLog $log,
         private readonly bool $hasPending,
         private readonly bool $lockAcquirable = true,
         private readonly bool $lockHeldAtRelease = true,
         private readonly bool $hasNonTransactional = false,
+        private readonly array $dependencyUnsafeNonTransactional = [],
     ) {
     }
 
@@ -61,5 +65,12 @@ final class FakeLaneGuard implements LaneGuard
         $this->log->record('hasNonTransactionalPendingMigrations');
 
         return $this->hasNonTransactional;
+    }
+
+    public function dependencyUnsafeNonTransactionalMigrations(): array
+    {
+        $this->log->record('dependencyUnsafeNonTransactionalMigrations');
+
+        return $this->dependencyUnsafeNonTransactional;
     }
 }

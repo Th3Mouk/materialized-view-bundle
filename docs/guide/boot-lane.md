@@ -48,7 +48,21 @@ Doctrine Migrations exposes **no reliable API** for the tables a pending migrati
 - Determine pending migrations via Doctrine Migrations.
 - If none are pending → drop nothing.
 - If at least one is pending → drop the managed views in reverse dependency order, migrate, then `sync` recreates declared views.
-- Targeted drop is a **future** extension: an app-supplied `MigrationImpactResolver`, or a reactive `catch + drop closure + retry` mode (feasible, but not the default — it depends on migration transactionality).
+- Targeted drop is available as the opt-in `reactive_retry` strategy (`catch + drop closure + retry`), described below; an app-supplied `MigrationImpactResolver` (`custom_impact`) remains a future extension.
+
+### `reactive_retry` and non-transactional migrations
+
+`reactive_retry` migrates first and, on a dependency-conflict SQLSTATE (`2BP01`/`0A000`), drops only the blocking managed closure and retries. A **non-transactional** migration cannot be retried after failing half-way, so a pending one normally falls back to dropping every managed view up front.
+
+That fallback is kept **only when a pending non-transactional migration can raise a dependency conflict**. When every statement of every pending non-transactional migration is one of the following, the lane skips the fallback, logs why (`info`), and takes the normal reactive path:
+
+- `CREATE [UNIQUE] INDEX [CONCURRENTLY] [IF NOT EXISTS] …`
+- `DROP INDEX [CONCURRENTLY] [IF EXISTS] …`
+- `REINDEX …`
+- `ALTER TABLE [IF EXISTS] [ONLY] <table> VALIDATE CONSTRAINT <name>` (that action alone)
+- `ANALYZE …` and `VACUUM …`
+
+Anything else — another `ALTER TABLE` action, several statements in one string, text that cannot be read with certainty — keeps the fallback and logs a warning naming the migration versions. The statements are the ones Doctrine Migrations plans in a dry run of the pending non-transactional migrations (see [Doctrine Migrations references](../internals/doctrine-migrations-references.md)); if they cannot be obtained, the fallback is kept. Views declared `WITH NO DATA` and populated manually therefore stay populated across index-only migrations.
 
 Before any drop, the lane runs `ExternalDependencyGuard`: if a managed view has an **unmanaged** dependent, the drop **refuses** with a clear message. `CASCADE` is never implicit.
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`reactive_retry` no longer drops every managed view for a pending non-transactional
+  migration that cannot conflict.** The deploy lane used to fall back to dropping all managed
+  views whenever any pending migration was non-transactional, because such a migration cannot be
+  retried after failing half-way on a dependency conflict (SQLSTATE `2BP01` / `0A000`). Index
+  builds and constraint validation can never raise that conflict, yet each one dropped every
+  managed view, leaving views declared `WITH NO DATA` empty until a manual population. The
+  fallback is now kept only when a pending non-transactional migration contains a statement
+  outside the core's `DependencySafeStatement` allowlist (`CREATE [UNIQUE] INDEX`, `DROP INDEX`,
+  `REINDEX`, `ALTER TABLE … VALIDATE CONSTRAINT`, `ANALYZE`, `VACUUM`), or when its SQL cannot be
+  obtained. Otherwise the lane logs (`info`) that the fallback was skipped and why, and takes
+  the normal reactive path (migrate, drop a conflict closure only on an actual conflict). The
+  SQL is the statements Doctrine Migrations plans in a dry run of the pending non-transactional
+  migrations, collected on a fresh `DependencyFactory`; no migration file is parsed. The
+  fallback warning now names the offending migration versions. `LaneGuard` gains
+  `dependencyUnsafeNonTransactionalMigrations()`.
+- **Requires a `th3mouk/materialized-view` release that ships `DependencySafeStatement`.**
+
 ## [1.3.1] - 2026-06-23
 
 ### Fixed

@@ -17,6 +17,8 @@ Bundle-level and multi-database boot scenarios. Core scenarios are in the native
 - `matview:doctrine-lane` holds a session-level advisory lock across `drop → migrate → sync`.
 - The lane lock is taken on the primary and on the **same connection** as Doctrine Migrations; released in `finally`.
 - The lane can invoke the existing `MigrateCommand` in-process without losing console output; explicit `MigratorConfiguration` if using the migrator directly.
+- `reactive_retry` with a pending non-transactional migration made only of dependency-safe statements (index build, constraint validation, `ANALYZE`): the managed views are not dropped (same relation OID before and after) and the migration runs on a factory the dry run left untouched.
+- `reactive_retry` with a pending non-transactional migration containing a statement that can conflict (e.g. `ALTER COLUMN … TYPE`), or whose `up()` fails during the dry run: the drop-all fallback is kept.
 - Async policy: `sync` does not perform a blocking initial refresh without an explicit option; the worker resolves the correct target DB before refreshing.
 - `template.policy`: `empty`, `cloned_stale`, `maintained_template`; `maintained_template` documents/refuses a maintainer connection held during a clone.
 
