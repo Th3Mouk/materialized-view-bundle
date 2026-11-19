@@ -108,9 +108,18 @@ final readonly class DoctrineLane
         }
 
         if ($this->guard->hasNonTransactionalPendingMigrations()) {
-            $this->logger->warning('A non-transactional migration is pending; falling back to dropping all managed views before DDL.');
+            $unsafe = $this->guard->dependencyUnsafeNonTransactionalMigrations();
 
-            return $this->runDropAllOnPending();
+            if ([] !== $unsafe) {
+                $this->logger->warning(
+                    'A pending non-transactional migration can raise a dependency conflict, or its SQL could not be inspected; falling back to dropping all managed views before DDL.',
+                    ['migrations' => $unsafe],
+                );
+
+                return $this->runDropAllOnPending();
+            }
+
+            $this->logger->info('Every pending non-transactional migration is dependency-safe (index, constraint validation or maintenance statements only); skipping the drop-all fallback.');
         }
 
         $dropped = $this->migrateReactively();

@@ -16,6 +16,7 @@ use Th3Mouk\MaterializedViewBundle\Lane\LaneDegradedAfterFailedMigration;
 use Th3Mouk\MaterializedViewBundle\Lane\LaneDropStrategy;
 use Th3Mouk\MaterializedViewBundle\Lane\ReactiveDropMadeNoProgress;
 use Th3Mouk\MaterializedViewBundle\Lane\UnsupportedLaneDropStrategy;
+use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\CollectingLogger;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeLaneGuard;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeLaneMigrator;
 use Th3Mouk\MaterializedViewBundle\Tests\Unit\Lane\Fake\FakeManagedViewOperations;
@@ -203,20 +204,47 @@ final class DoctrineLaneTest extends TestCase
         );
     }
 
-    public function testReactiveStrategyFallsBackToDropAllWhenANonTransactionalMigrationIsPending(): void
+    public function testReactiveStrategyFallsBackToDropAllWhenAPendingNonTransactionalMigrationCanConflict(): void
     {
         $log = new LaneCallLog();
-        $guard = new FakeLaneGuard($log, hasPending: true, hasNonTransactional: true);
+        $guard = new FakeLaneGuard($log, hasPending: true, hasNonTransactional: true, dependencyUnsafeNonTransactional: ['20240101000000']);
         $migrator = new FakeLaneMigrator($log);
         $views = new FakeManagedViewOperations($log, $this->outcome());
+        $logger = new CollectingLogger();
 
-        new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry)->run();
+        new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry, $logger)->run();
 
         self::assertSame(
-            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'dependencyUnsafeNonTransactionalMigrations', 'hasPendingMigrations', 'dropAllManaged', 'migrate', 'synchronize', 'releaseLock'],
             $log->calls(),
         );
         self::assertFalse($log->contains('dropConflictClosure'));
+        self::assertSame('warning', $logger->records[0]['level']);
+        self::assertSame(['20240101000000'], $logger->records[0]['context']['migrations']);
+    }
+
+    public function testReactiveStrategySkipsTheDropAllFallbackWhenEveryNonTransactionalMigrationIsDependencySafe(): void
+    {
+        $log = new LaneCallLog();
+        $guard = new FakeLaneGuard($log, hasPending: true, hasNonTransactional: true);
+        $migrator = new FakeLaneMigrator($log, failWith: $this->dependencyConflict('2BP01'), failTimes: 1);
+        $views = new FakeManagedViewOperations(
+            $log,
+            $this->outcome(rebuilt: ['public.order_totals']),
+            conflictDrops: [MaterializedViewName::create('public', 'order_totals')],
+        );
+        $logger = new CollectingLogger();
+
+        $result = new DoctrineLane($guard, $migrator, $views, LaneDropStrategy::ReactiveRetry, $logger)->run();
+
+        self::assertSame(
+            ['ensureConnectedToPrimary', 'acquireLock', 'ensureMetadataInitialized', 'hasPendingMigrations', 'hasNonTransactionalPendingMigrations', 'dependencyUnsafeNonTransactionalMigrations', 'migrate', 'dropConflictClosure', 'migrate', 'synchronize', 'releaseLock'],
+            $log->calls(),
+        );
+        self::assertFalse($log->contains('dropAllManaged'));
+        self::assertTrue($result->managedViewsDropped);
+        self::assertSame('info', $logger->records[0]['level']);
+        self::assertStringContainsString('skipping the drop-all fallback', $logger->records[0]['message']);
     }
 
     public function testReactiveStrategyAbortsWhenADropRoundFreesNothing(): void

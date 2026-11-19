@@ -11,7 +11,9 @@ namespace Th3Mouk\MaterializedViewBundle\Lane;
  *                    migrate, then re-sync. Blunt but always safe (the default).
  *   reactive_retry — migrate first; on a dependency-conflict SQLSTATE drop only the
  *                    conflicting closure and retry. Falls back to all_on_pending when a
- *                    non-transactional migration is pending.
+ *                    pending non-transactional migration contains a statement that can
+ *                    raise a dependency conflict (index builds, constraint validation and
+ *                    maintenance statements do not).
  *   custom_impact  — reserved; not yet implemented.
  */
 enum LaneDropStrategy: string
