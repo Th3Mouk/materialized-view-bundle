@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   migrations, collected on a fresh `DependencyFactory`; no migration file is parsed. The
   fallback warning now names the offending migration versions. `LaneGuard` gains
   `dependencyUnsafeNonTransactionalMigrations()`.
-- **Requires a `th3mouk/materialized-view` release that ships `DependencySafeStatement`.**
+- **Requires `th3mouk/materialized-view` `^1.4`.** Library 1.4 ships `DependencySafeStatement`.
 
 ## [1.3.1] - 2026-06-23
 
